@@ -9,3 +9,5 @@ spec-*
 test.txt
 .VSCodeCounter
 testOut.txt
+*.o
+*.gz

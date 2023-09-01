@@ -1,8 +1,11 @@
+// identifier: A8A3A33EF075ACEF9B08F5B9845569ECCB423725
+
 #include <getopt.h>
 #include <cctype>
 #include <cstring>
 #include <deque>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 using namespace std;
@@ -11,7 +14,7 @@ class Error {
    public:
     string errMessage;
     Error() {}
-    Error(const string s)
+    Error(const string& s)
         : errMessage(s) {}
 };
 
@@ -39,8 +42,8 @@ class MazeSolving {
     void solve();
 
    private:
-    const int32_t dx[4] = {-1, 0, 1, 0};
-    const int32_t dy[4] = {0, 1, 0, -1};
+    const int32_t dx[5] = {-1, 0, 1, 0, 0};
+    const int32_t dy[5] = {0, 1, 0, -1, 0};
     enum SearchMethod {
         BFS,
         DFS
@@ -49,11 +52,18 @@ class MazeSolving {
         UP,
         RIGHT,
         DOWN,
-        LEFT
+        LEFT,
+        CHANGE_COLOR
     };
     enum OutputType {
         MAP,
         LIST
+    };
+    enum MapStatus {
+        NORMAL,
+        STARTING,
+        ENDING,
+        PASSING
     };
     /**
      * @brief a node type used in deque
@@ -118,15 +128,6 @@ class MazeSolving {
 
     bool targetReached;
 
-    /**
-     * @brief whether cur can be investigate later. cur cannot be investigate if is has already been investigated or cur is out of the map
-     *
-     * @param cur
-     * @param vis
-     * @return true
-     * @return false
-     */
-    inline bool isValid(const Node& cur, const vector<vector<vector<int32_t>>>& vis);
     inline bool isInMap(const Node& cur);
     inline ushort c2n(char c) {
         return c == '^' ? 0 : ushort(islower(c) ? c - 'a' + 1 : c - 'A' + 1);
@@ -217,10 +218,15 @@ void MazeSolving::readMaze() {
         throw(Error("Error: The size of the maze cannot be 0"));
     }
     mazeMap.resize(height);
+    string st;
+    getline(cin, st);
+    while (st == "" || st == "\n" || (st.length() >= 2 && st[0] == '/' && st[1] == '/'))
+        getline(cin, st);
     for (uint32_t i = 0; i < height; i++) {
+        istringstream ss(st);
         mazeMap[i].resize(width);
         for (uint32_t j = 0; j < width; j++) {
-            if (!(cin >> mazeMap[i][j])) {
+            if (!(ss >> mazeMap[i][j])) {
                 throw(Error("Error: The map size does not agree with height*width"));
             }
             switch (mazeMap[i][j]) {
@@ -258,6 +264,8 @@ void MazeSolving::readMaze() {
                     }
             }
         }
+        if (i < height - 1)
+            getline(cin, st);
     }
     char c;
     if (cin >> c) {
@@ -274,6 +282,7 @@ void MazeSolving::solve() {
     vector<vector<vector<ushort>>> fromColor(nColor + 1, vector<vector<ushort>>(height, vector<ushort>(width, -1)));
     deque<Node> deq;
     deq.push_back(start);
+    vis[start.c][start.x][start.y] = 0;
     while ((!deq.empty())) {
         Node cur;
         if (searchMethod == BFS) {
@@ -283,31 +292,50 @@ void MazeSolving::solve() {
             cur = deq.back();
             deq.pop_back();
         }
-        if (vis[cur.c][cur.x][cur.y] != -1) {
-            continue;
-        }
-        vis[cur.c][cur.x][cur.y] = cur.steps;
-        move[cur.c][cur.x][cur.y] = cur.move;
-        fromColor[cur.c][cur.x][cur.y] = cur.fromColor;
+        // if (vis[cur.c][cur.x][cur.y] != -1) {
+        //     continue;
+        // }
+        // vis[cur.c][cur.x][cur.y] = cur.steps;
+        // move[cur.c][cur.x][cur.y] = cur.move;
+        // fromColor[cur.c][cur.x][cur.y] = cur.fromColor;
+
+        // cout << "-------------"
+        //      << cur.x << cur.y << cur.c
+        //      << endl;
         if (mazeMap[cur.x][cur.y] == '?') {
             targetReached = true;
             break;
         }
-        for (ushort dir = 0; dir < 4; dir++) {
-            Node nxt(cur.x + dx[dir], cur.y + dy[dir], cur.c, cur.steps + 1, Move(dir), cur.c);
-            if (isInMap(nxt)) {
-                char tc = mazeMap[nxt.x][nxt.y];
-                if (tc == '.') {
-                } else if (tc == '#') {
-                    continue;
-                } else if (islower(tc) || tc == '^') {
-                    nxt.c = c2n(tc);
-                } else if (isupper(tc)) {
-                    if (cur.c != c2n(tc)) {
-                        continue;
-                    }
-                }
+        if ((islower(mazeMap[cur.x][cur.y]) || mazeMap[cur.x][cur.y] == '^') && cur.c != c2n(mazeMap[cur.x][cur.y])) {
+            Node nxt(cur.x, cur.y, c2n(mazeMap[cur.x][cur.y]), cur.steps + 1, CHANGE_COLOR, cur.c);
+            if (vis[nxt.c][nxt.x][nxt.y] == -1) {
                 deq.push_back(nxt);
+                vis[nxt.c][nxt.x][nxt.y] = nxt.steps;
+                move[nxt.c][nxt.x][nxt.y] = nxt.move;
+                fromColor[nxt.c][nxt.x][nxt.y] = nxt.fromColor;
+                // cout << nxt.x << nxt.y << nxt.c << endl;
+            }
+        } else {
+            for (ushort dir = 0; dir < 4; dir++) {
+                Node nxt(cur.x + dx[dir], cur.y + dy[dir], cur.c, cur.steps + 1, Move(dir), cur.c);
+                if (isInMap(nxt)) {
+                    char tc = mazeMap[nxt.x][nxt.y];
+                    if (tc == '.') {
+                    } else if (tc == '#') {
+                        continue;
+                    } else if (isupper(tc)) {
+                        if (cur.c != c2n(tc)) {
+                            continue;
+                        }
+                    }
+                    if (vis[nxt.c][nxt.x][nxt.y] == -1) {
+                        deq.push_back(nxt);
+                        vis[nxt.c][nxt.x][nxt.y] = nxt.steps;
+                        move[nxt.c][nxt.x][nxt.y] = nxt.move;
+                        fromColor[nxt.c][nxt.x][nxt.y] = nxt.fromColor;
+                    }
+                    // cout << nxt.x << nxt.y << nxt.c << endl;
+                }
             }
         }
     }
@@ -318,24 +346,32 @@ void MazeSolving::solve() {
     }
 }
 
-inline bool MazeSolving::isValid(const Node& cur, const vector<vector<vector<int32_t>>>& vis) {
-    return isInMap(cur) && vis[cur.c][cur.x][cur.y] == -1;
-}
-
 inline bool MazeSolving::isInMap(const Node& cur) {
     return cur.x >= 0 && cur.x < int32_t(height) && cur.y >= 0 && cur.y < int32_t(width);
 }
 
 void MazeSolving::outputSol(const vector<vector<vector<int32_t>>>& vis, const vector<vector<vector<Move>>>& move, const vector<vector<vector<ushort>>>& fromColor) {
     vector<Move> ansMove;
+    vector<vector<vector<MapStatus>>> mapStatus(nColor + 1, vector<vector<MapStatus>>(height, vector<MapStatus>(width, NORMAL)));
     for (ushort k = 0; k <= nColor; k++) {
         if (vis[k][target.x][target.y] != -1) {
             Node cur(target.x, target.y, k, 0, UP, 0);
+            Move nextMove = UP;
             while (cur.x != start.x || cur.y != start.y || cur.c != 0) {
                 // cout << cur.x << cur.y << cur.c << start.x << start.y << endl;
                 ansMove.push_back(move[cur.c][cur.x][cur.y]);
+                if (nextMove == CHANGE_COLOR) {
+                    mapStatus[cur.c][cur.x][cur.y] = ENDING;
+                } else if (move[cur.c][cur.x][cur.y] == CHANGE_COLOR) {
+                    mapStatus[cur.c][cur.x][cur.y] = STARTING;
+                } else {
+                    mapStatus[cur.c][cur.x][cur.y] = PASSING;
+                }
+                nextMove = move[cur.c][cur.x][cur.y];
                 cur = Node(cur.x - dx[move[cur.c][cur.x][cur.y]], cur.y - dy[move[cur.c][cur.x][cur.y]], fromColor[cur.c][cur.x][cur.y], 0, UP, 0);
             }
+            mapStatus[0][start.x][start.y] = STARTING;
+            break;
         }
     }
     if (outputType == LIST) {
@@ -345,13 +381,32 @@ void MazeSolving::outputSol(const vector<vector<vector<int32_t>>>& vis, const ve
             Move m = ansMove.back();
             ansMove.pop_back();
             cur = Node(cur.x + dx[m], cur.y + dy[m], cur.c, 0, UP, 0);
-            char tc = mazeMap[cur.x][cur.y];
-            if (islower(tc) || tc == '^') {
-                if (cur.c != c2n(tc))
-                    cout << "(" << n2c(cur.c) << ", (" << cur.x << ", " << cur.y << "))\n";
-                cur.c = c2n(tc);
+            if (m == CHANGE_COLOR) {
+                cur.c = c2n(mazeMap[cur.x][cur.y]);
             }
             cout << "(" << n2c(cur.c) << ", (" << cur.x << ", " << cur.y << "))\n";
+        }
+    } else {
+        for (ushort k = 0; k <= nColor; k++) {
+            cout << "// color " << n2c(k) << '\n';
+            for (uint32_t i = 0; i < height; i++) {
+                for (uint32_t j = 0; j < width; j++) {
+                    switch (mapStatus[k][i][j]) {
+                        case STARTING:
+                            cout << '@';
+                            break;
+                        case ENDING:
+                            cout << '%';
+                            break;
+                        case PASSING:
+                            cout << (uint32_t(target.x) == i && uint32_t(target.y) == j ? '?' : '+');
+                            break;
+                        default:
+                            cout << (c2n(mazeMap[i][j]) == k || mazeMap[i][j] == '@' ? '.' : mazeMap[i][j]);
+                    }
+                }
+                cout << '\n';
+            }
         }
     }
 }
