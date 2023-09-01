@@ -1,0 +1,9 @@
+puzzle_debug
+puzzle
+out-*
+Error_messages.txt
+big.txt
+.vscode
+small.txt
+spec-*
+test.txt
