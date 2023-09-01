@@ -1,6 +1,7 @@
 #include <getopt.h>
 #include <cctype>
 #include <cstring>
+#include <deque>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -17,7 +18,7 @@ class Error {
 class MazeSolving {
    public:
     MazeSolving()
-        : nColor(0), height(0), width(0), triedSolve(false), outputType(MAP), hasStart(false), hasTarget(false) {}
+        : nColor(0), height(0), width(0), triedSolve(false), outputType(MAP), hasStart(false), hasTarget(false), targetReached(false) {}
     /**
      * @brief Get options from command line arguments and set everything done. Error in options are handled in this step.
      *
@@ -30,6 +31,12 @@ class MazeSolving {
      *
      */
     void readMaze();
+    /**
+     * @brief solve the maze by the given search method.
+     * solution will be stored in vis and move in solve and be passed by print ans directly
+     *
+     */
+    void solve();
 
    private:
     const int32_t dx[4] = {-1, 0, 1, 0};
@@ -48,6 +55,10 @@ class MazeSolving {
         MAP,
         LIST
     };
+    /**
+     * @brief a node type used in deque
+     *
+     */
     class Node {
        public:
         Node() {}
@@ -69,6 +80,21 @@ class MazeSolving {
                 return n1.steps < n2.steps;
             }
         };
+        Node& operator=(const Node& n) {
+            copyFrom(n);
+            return *this;
+        }
+        Node(const Node& n) {
+            copyFrom(n);
+        }
+
+       private:
+        void copyFrom(const Node& n) {
+            x = n.x;
+            y = n.y;
+            c = n.c;
+            steps = n.steps;
+        }
     };
 
     uint32_t nColor;
@@ -82,6 +108,21 @@ class MazeSolving {
     bool hasStart;
     Node target;
     bool hasTarget;
+
+    bool targetReached;
+
+    /**
+     * @brief whether cur can be investigate later. cur cannot be investigate if is has already been investigated or cur is out of the map
+     *
+     * @param cur
+     * @param vis
+     * @return true
+     * @return false
+     */
+    inline bool isValid(const Node& cur, const vector<vector<vector<int32_t>>>& vis);
+    inline uint32_t c2n(char c) {
+        return c == '^' ? 0 : (islower(c) ? c - 'a' + 1 : c - 'A' + 1);
+    }
 };
 
 int main(int argc, char** argv) {
@@ -90,6 +131,7 @@ int main(int argc, char** argv) {
         MazeSolving maze;
         maze.getOptions(argc, argv);
         maze.readMaze();
+        maze.solve();
     } catch (Error& err) {
         cerr << err.errMessage << endl;
         return 1;
@@ -209,4 +251,37 @@ void MazeSolving::readMaze() {
     if ((!hasStart) || (!hasTarget)) {
         throw(Error("Error: Must has 1 and only 1 start and target"));
     }
+}
+
+void MazeSolving::solve() {
+    vector<vector<vector<int32_t>>> vis(nColor + 1, vector<vector<int32_t>>(height, vector<int32_t>(width, -1)));
+    vector<vector<vector<Move>>> move(nColor + 1, vector<vector<Move>>(height, vector<Move>(width, UP)));
+    deque<Node> deq;
+    deq.push_back(start);
+    while ((!deq.empty())) {
+        Node cur;
+        if (searchMethod == BFS) {
+            cur = deq.front();
+            deq.pop_front();
+        } else {
+            cur = deq.back();
+            deq.pop_back();
+        }
+        if (mazeMap[cur.x][cur.y] == '?') {
+            targetReached = true;
+            break;
+        }
+        if (vis[c2n(cur.c)][cur.x][cur.y] != -1) {
+            continue;
+        }
+        // TODO:
+    }
+}
+
+inline bool MazeSolving::isValid(const Node& cur, const vector<vector<vector<int32_t>>>& vis) {
+    if (cur.x < 0 || cur.x > height || cur.y < 0 || cur.y > width)
+        return false;
+    if (vis[c2n(cur.c)][cur.x][cur.y] != -1)
+        return false;
+    return true;
 }
