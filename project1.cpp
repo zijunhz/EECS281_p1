@@ -120,6 +120,7 @@ class MazeSolving {
      * @return false
      */
     inline bool isValid(const Node& cur, const vector<vector<vector<int32_t>>>& vis);
+    inline bool isInMap(const Node& cur);
     inline uint32_t c2n(char c) {
         return c == '^' ? 0 : (islower(c) ? c - 'a' + 1 : c - 'A' + 1);
     }
@@ -145,7 +146,7 @@ int main(int argc, char** argv) {
 void MazeSolving::getOptions(int argc, char** argv) {
     int optionIdx = 0;
     int option = 0;
-    // opterr = 0;
+    opterr = 0;
     struct option longOpts[] = {{"queue", no_argument, nullptr, 'q'},
                                 {"stack", no_argument, nullptr, 's'},
                                 {"output", required_argument, nullptr, 'o'},
@@ -156,6 +157,9 @@ void MazeSolving::getOptions(int argc, char** argv) {
 
     while ((option = getopt_long(argc, argv, "qso:h", longOpts, &optionIdx)) != -1) {
         switch (option) {
+            case 'h':
+                cout << "I'm so lazy writing a help that is already available at https://eecs281staff.github.io/p1-puzzle/#puzzle-options\n";
+                exit(0);
             case 'q':
                 if (searchMethodSpecified) {
                     throw(Error("Error: Can not have both stack and queue"));
@@ -183,9 +187,8 @@ void MazeSolving::getOptions(int argc, char** argv) {
                     throw(Error("Error: Invalid output mode"));
                 }
                 break;
-            case 'h':
-                cout << "I'm so lazy writing a help that is already available at https://eecs281staff.github.io/p1-puzzle/#puzzle-options\n";
-                exit(0);
+            default:
+                throw(Error("Error: Unknown option"));
         }
     }
     if (!searchMethodSpecified) {
@@ -274,14 +277,20 @@ void MazeSolving::solve() {
         if (vis[c2n(cur.c)][cur.x][cur.y] != -1) {
             continue;
         }
-        // TODO:
+        for (ushort dir = 0; dir < 4; dir++) {
+            Node nxt(cur.x + dx[dir], cur.y + dy[dir], cur.c, cur.steps + 1);
+            // this part needs to be very efficient, so do not reuse any function
+            if (isInMap(nxt)) {
+                // TODO:
+            }
+        }
     }
 }
 
 inline bool MazeSolving::isValid(const Node& cur, const vector<vector<vector<int32_t>>>& vis) {
-    if (cur.x < 0 || cur.x > height || cur.y < 0 || cur.y > width)
-        return false;
-    if (vis[c2n(cur.c)][cur.x][cur.y] != -1)
-        return false;
-    return true;
+    return isInMap(cur) && vis[c2n(cur.c)][cur.x][cur.y] == -1;
+}
+
+inline bool MazeSolving::isInMap(const Node& cur) {
+    return cur.x >= 0 && cur.x < height && cur.y >= 0 && cur.y < width;
 }
