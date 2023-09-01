@@ -338,7 +338,6 @@ void MazeSolving::outputSol(const vector<vector<vector<int32_t>>>& vis, const ve
             }
         }
     }
-    // cout << "Done" << endl;
     if (outputType == LIST) {
         Node cur = start;
         cout << "(^, (" << cur.x << ", " << cur.y << "))\n";
@@ -348,6 +347,8 @@ void MazeSolving::outputSol(const vector<vector<vector<int32_t>>>& vis, const ve
             cur = Node(cur.x + dx[m], cur.y + dy[m], cur.c, 0, UP, 0);
             char tc = mazeMap[cur.x][cur.y];
             if (islower(tc) || tc == '^') {
+                if (cur.c != c2n(tc))
+                    cout << "(" << n2c(cur.c) << ", (" << cur.x << ", " << cur.y << "))\n";
                 cur.c = c2n(tc);
             }
             cout << "(" << n2c(cur.c) << ", (" << cur.x << ", " << cur.y << "))\n";
