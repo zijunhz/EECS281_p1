@@ -136,13 +136,13 @@ class MazeSolving {
         return n == 0 ? '^' : char('a' + n - 1);
     }
     inline uint8_t encode(Move m, uint8_t c) {
-        return uint8_t(m * 30 + c + 1);
+        return uint8_t((m << 5) + c + 1);
     }
     inline Move decodeMove(uint8_t n) {
-        return Move((n - 1) / 30);
+        return Move((n - 1) >> 5);
     }
     inline uint8_t decodeC(uint8_t n) {
-        return uint8_t((n - 1) % 30);
+        return uint8_t((n - 1) & 31);
     }
     void outputSol(const vector<vector<vector<uint8_t>>>& from);
     void outputNoSol(const vector<vector<vector<uint8_t>>>& from);
