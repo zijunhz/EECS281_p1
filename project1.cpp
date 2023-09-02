@@ -85,7 +85,7 @@ class MazeSolving {
         }
         int32_t x;
         int32_t y;
-        uint8_t c;  // abcd...z for corresponding activated button; ^ for trap  // 0...26
+        uint8_t c;  // 0...26
         uint32_t steps;
         Move move;
         uint8_t fromColor;
@@ -145,7 +145,6 @@ class MazeSolving {
         return uint8_t((n - 1) % 30);
     }
     void outputSol(const vector<vector<vector<uint8_t>>>& from);
-    // void outputSol(const vector<vector<vector<bool>>>& vis, const vector<vector<vector<uint8_t>>>& move, const vector<vector<vector<uint8_t>>>& fromColor);
     void outputNoSol(const vector<vector<vector<uint8_t>>>& from);
 };
 
@@ -287,9 +286,6 @@ void MazeSolving::readMaze() {
 }
 
 void MazeSolving::solve() {
-    // vector<vector<vector<bool>>> vis(nColor + 1, vector<vector<bool>>(height, vector<bool>(width, false)));
-    // vector<vector<vector<uint8_t>>> move(nColor + 1, vector<vector<uint8_t>>(height, vector<uint8_t>(width, UP)));
-    // vector<vector<vector<uint8_t>>> fromColor(nColor + 1, vector<vector<uint8_t>>(height, vector<uint8_t>(width, 0)));
     vector<vector<vector<uint8_t>>> from(nColor + 1, vector<vector<uint8_t>>(height, vector<uint8_t>(width, 0)));
     deque<Node> deq;
     deq.push_back(start);
@@ -303,12 +299,6 @@ void MazeSolving::solve() {
             cur = deq.back();
             deq.pop_back();
         }
-        // if (vis[cur.c][cur.x][cur.y] != -1) {
-        //     continue;
-        // }
-        // vis[cur.c][cur.x][cur.y] = cur.steps;
-        // move[cur.c][cur.x][cur.y] = cur.move;
-        // fromColor[cur.c][cur.x][cur.y] = cur.fromColor;
 
         // cout << "-------------"
         //      << cur.x << cur.y << cur.c
@@ -321,11 +311,7 @@ void MazeSolving::solve() {
             Node nxt(cur.x, cur.y, c2n(mazeMap[cur.x][cur.y]), cur.steps + 1, CHANGE_COLOR, cur.c);
             if (!from[nxt.c][nxt.x][nxt.y]) {
                 deq.push_back(nxt);
-                // vis[nxt.c][nxt.x][nxt.y] = true;
                 from[nxt.c][nxt.x][nxt.y] = encode(nxt.move, nxt.fromColor);
-                // move[nxt.c][nxt.x][nxt.y] = nxt.move;
-                // fromColor[nxt.c][nxt.x][nxt.y] = nxt.fromColor;
-                // cout << nxt.x << nxt.y << nxt.c << endl;
             }
         } else {
             for (uint8_t dir = 0; dir < 4; dir++) {
@@ -342,10 +328,7 @@ void MazeSolving::solve() {
                     }
                     if (!from[nxt.c][nxt.x][nxt.y]) {
                         deq.push_back(nxt);
-                        // vis[nxt.c][nxt.x][nxt.y] = true;
                         from[nxt.c][nxt.x][nxt.y] = encode(nxt.move, nxt.fromColor);
-                        // move[nxt.c][nxt.x][nxt.y] = nxt.move;
-                        // fromColor[nxt.c][nxt.x][nxt.y] = nxt.fromColor;
                     }
                     // cout << nxt.x << nxt.y << nxt.c << endl;
                 }
@@ -354,7 +337,6 @@ void MazeSolving::solve() {
     }
     if (targetReached) {
         outputSol(from);
-        // outputSol(vis, move, fromColor);
     } else {
         outputNoSol(from);
     }
