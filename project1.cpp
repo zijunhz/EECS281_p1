@@ -73,9 +73,9 @@ class MazeSolving {
     class Node {
        public:
         Node() {}
-        Node(int32_t x, int32_t y, int8_t c, uint32_t steps, Move move, int8_t fromColor)
+        Node(int32_t x, int32_t y, uint8_t c, uint32_t steps, Move move, uint8_t fromColor)
             : x(x), y(y), c(c), steps(steps), move(move), fromColor(fromColor) {}
-        void updateNode(int32_t x, int32_t y, int8_t c, uint32_t steps, Move move, int8_t fromColor) {
+        void updateNode(int32_t x, int32_t y, uint8_t c, uint32_t steps, Move move, uint8_t fromColor) {
             this->x = x;
             this->y = y;
             this->c = c;
@@ -85,10 +85,10 @@ class MazeSolving {
         }
         int32_t x;
         int32_t y;
-        int8_t c;  // abcd...z for corresponding activated button; ^ for trap  // 0...26
+        uint8_t c;  // abcd...z for corresponding activated button; ^ for trap  // 0...26
         uint32_t steps;
         Move move;
-        int8_t fromColor;
+        uint8_t fromColor;
         class NodeSort {
            public:
             bool operator()(const Node& n1, const Node& n2) {
@@ -129,14 +129,24 @@ class MazeSolving {
     bool targetReached;
 
     inline bool isInMap(const Node& cur);
-    inline int8_t c2n(char c) {
-        return c == '^' ? 0 : int8_t(islower(c) ? c - 'a' + 1 : c - 'A' + 1);
+    inline uint8_t c2n(char c) {
+        return c == '^' ? 0 : uint8_t(islower(c) ? c - 'a' + 1 : c - 'A' + 1);
     }
     inline char n2c(uint32_t n) {
         return n == 0 ? '^' : char('a' + n - 1);
     }
-    void outputSol(const vector<vector<vector<bool>>>& vis, const vector<vector<vector<int8_t>>>& move, const vector<vector<vector<int8_t>>>& fromColor);
-    void outputNoSol(const vector<vector<vector<bool>>>& vis);
+    inline uint8_t encode(Move m, uint8_t c) {
+        return uint8_t(m * 30 + c + 1);
+    }
+    inline Move decodeMove(uint8_t n) {
+        return Move((n - 1) / 30);
+    }
+    inline uint8_t decodeC(uint8_t n) {
+        return uint8_t((n - 1) % 30);
+    }
+    void outputSol(const vector<vector<vector<uint8_t>>>& from);
+    // void outputSol(const vector<vector<vector<bool>>>& vis, const vector<vector<vector<uint8_t>>>& move, const vector<vector<vector<uint8_t>>>& fromColor);
+    void outputNoSol(const vector<vector<vector<uint8_t>>>& from);
 };
 
 int main(int argc, char** argv) {
@@ -277,12 +287,13 @@ void MazeSolving::readMaze() {
 }
 
 void MazeSolving::solve() {
-    vector<vector<vector<bool>>> vis(nColor + 1, vector<vector<bool>>(height, vector<bool>(width, false)));
-    vector<vector<vector<int8_t>>> move(nColor + 1, vector<vector<int8_t>>(height, vector<int8_t>(width, UP)));
-    vector<vector<vector<int8_t>>> fromColor(nColor + 1, vector<vector<int8_t>>(height, vector<int8_t>(width, -1)));
+    // vector<vector<vector<bool>>> vis(nColor + 1, vector<vector<bool>>(height, vector<bool>(width, false)));
+    // vector<vector<vector<uint8_t>>> move(nColor + 1, vector<vector<uint8_t>>(height, vector<uint8_t>(width, UP)));
+    // vector<vector<vector<uint8_t>>> fromColor(nColor + 1, vector<vector<uint8_t>>(height, vector<uint8_t>(width, 0)));
+    vector<vector<vector<uint8_t>>> from(nColor + 1, vector<vector<uint8_t>>(height, vector<uint8_t>(width, 0)));
     deque<Node> deq;
     deq.push_back(start);
-    vis[start.c][start.x][start.y] = true;
+    from[start.c][start.x][start.y] = 1;
     while ((!deq.empty())) {
         Node cur;
         if (searchMethod == BFS) {
@@ -308,15 +319,16 @@ void MazeSolving::solve() {
         }
         if ((islower(mazeMap[cur.x][cur.y]) || mazeMap[cur.x][cur.y] == '^') && cur.c != c2n(mazeMap[cur.x][cur.y])) {
             Node nxt(cur.x, cur.y, c2n(mazeMap[cur.x][cur.y]), cur.steps + 1, CHANGE_COLOR, cur.c);
-            if (!vis[nxt.c][nxt.x][nxt.y]) {
+            if (!from[nxt.c][nxt.x][nxt.y]) {
                 deq.push_back(nxt);
-                vis[nxt.c][nxt.x][nxt.y] = true;
-                move[nxt.c][nxt.x][nxt.y] = nxt.move;
-                fromColor[nxt.c][nxt.x][nxt.y] = nxt.fromColor;
+                // vis[nxt.c][nxt.x][nxt.y] = true;
+                from[nxt.c][nxt.x][nxt.y] = encode(nxt.move, nxt.fromColor);
+                // move[nxt.c][nxt.x][nxt.y] = nxt.move;
+                // fromColor[nxt.c][nxt.x][nxt.y] = nxt.fromColor;
                 // cout << nxt.x << nxt.y << nxt.c << endl;
             }
         } else {
-            for (int8_t dir = 0; dir < 4; dir++) {
+            for (uint8_t dir = 0; dir < 4; dir++) {
                 Node nxt(cur.x + dx[dir], cur.y + dy[dir], cur.c, cur.steps + 1, Move(dir), cur.c);
                 if (isInMap(nxt)) {
                     char tc = mazeMap[nxt.x][nxt.y];
@@ -328,11 +340,12 @@ void MazeSolving::solve() {
                             continue;
                         }
                     }
-                    if (!vis[nxt.c][nxt.x][nxt.y]) {
+                    if (!from[nxt.c][nxt.x][nxt.y]) {
                         deq.push_back(nxt);
-                        vis[nxt.c][nxt.x][nxt.y] = true;
-                        move[nxt.c][nxt.x][nxt.y] = nxt.move;
-                        fromColor[nxt.c][nxt.x][nxt.y] = nxt.fromColor;
+                        // vis[nxt.c][nxt.x][nxt.y] = true;
+                        from[nxt.c][nxt.x][nxt.y] = encode(nxt.move, nxt.fromColor);
+                        // move[nxt.c][nxt.x][nxt.y] = nxt.move;
+                        // fromColor[nxt.c][nxt.x][nxt.y] = nxt.fromColor;
                     }
                     // cout << nxt.x << nxt.y << nxt.c << endl;
                 }
@@ -340,9 +353,10 @@ void MazeSolving::solve() {
         }
     }
     if (targetReached) {
-        outputSol(vis, move, fromColor);
+        outputSol(from);
+        // outputSol(vis, move, fromColor);
     } else {
-        outputNoSol(vis);
+        outputNoSol(from);
     }
 }
 
@@ -350,25 +364,25 @@ inline bool MazeSolving::isInMap(const Node& cur) {
     return cur.x >= 0 && cur.x < int32_t(height) && cur.y >= 0 && cur.y < int32_t(width);
 }
 
-void MazeSolving::outputSol(const vector<vector<vector<bool>>>& vis, const vector<vector<vector<int8_t>>>& move, const vector<vector<vector<int8_t>>>& fromColor) {
-    vector<int8_t> ansMove;
-    vector<vector<vector<int8_t>>> mapStatus(nColor + 1, vector<vector<int8_t>>(height, vector<int8_t>(width, NORMAL)));
-    for (int8_t k = 0; k <= int8_t(nColor); k++) {
-        if (vis[k][target.x][target.y]) {
+void MazeSolving::outputSol(const vector<vector<vector<uint8_t>>>& from) {
+    vector<uint8_t> ansMove;
+    vector<vector<vector<uint8_t>>> mapStatus(nColor + 1, vector<vector<uint8_t>>(height, vector<uint8_t>(width, NORMAL)));
+    for (uint8_t k = 0; k <= uint8_t(nColor); k++) {
+        if (from[k][target.x][target.y]) {
             Node cur(target.x, target.y, k, 0, UP, 0);
             Move nextMove = UP;
             while (cur.x != start.x || cur.y != start.y || cur.c != 0) {
                 // cout << cur.x << cur.y << cur.c << start.x << start.y << endl;
-                ansMove.push_back(move[cur.c][cur.x][cur.y]);
+                ansMove.push_back(decodeMove(from[cur.c][cur.x][cur.y]));
                 if (nextMove == CHANGE_COLOR) {
                     mapStatus[cur.c][cur.x][cur.y] = ENDING;
-                } else if (move[cur.c][cur.x][cur.y] == CHANGE_COLOR) {
+                } else if (decodeMove(from[cur.c][cur.x][cur.y]) == CHANGE_COLOR) {
                     mapStatus[cur.c][cur.x][cur.y] = STARTING;
                 } else {
                     mapStatus[cur.c][cur.x][cur.y] = PASSING;
                 }
-                nextMove = Move(move[cur.c][cur.x][cur.y]);
-                cur = Node(cur.x - dx[move[cur.c][cur.x][cur.y]], cur.y - dy[move[cur.c][cur.x][cur.y]], fromColor[cur.c][cur.x][cur.y], 0, UP, 0);
+                nextMove = decodeMove(from[cur.c][cur.x][cur.y]);
+                cur = Node(cur.x - dx[decodeMove(from[cur.c][cur.x][cur.y])], cur.y - dy[decodeMove(from[cur.c][cur.x][cur.y])], decodeC(from[cur.c][cur.x][cur.y]), 0, UP, 0);
             }
             mapStatus[0][start.x][start.y] = STARTING;
             break;
@@ -387,7 +401,7 @@ void MazeSolving::outputSol(const vector<vector<vector<bool>>>& vis, const vecto
             cout << "(" << n2c(cur.c) << ", (" << cur.x << ", " << cur.y << "))\n";
         }
     } else {
-        for (int8_t k = 0; k <= int8_t(nColor); k++) {
+        for (uint8_t k = 0; k <= uint8_t(nColor); k++) {
             cout << "// color " << n2c(k) << '\n';
             for (uint32_t i = 0; i < height; i++) {
                 for (uint32_t j = 0; j < width; j++) {
@@ -410,13 +424,13 @@ void MazeSolving::outputSol(const vector<vector<vector<bool>>>& vis, const vecto
         }
     }
 }
-void MazeSolving::outputNoSol(const vector<vector<vector<bool>>>& vis) {
+void MazeSolving::outputNoSol(const vector<vector<vector<uint8_t>>>& from) {
     cout << "No solution.\nDiscovered:\n";
     for (uint32_t i = 0; i < height; i++) {
         for (uint32_t j = 0; j < width; j++) {
             bool visited = false;
             for (uint32_t k = 0; k <= nColor; k++) {
-                if (vis[k][i][j]) {
+                if (from[k][i][j]) {
                     visited = true;
                     break;
                 }
