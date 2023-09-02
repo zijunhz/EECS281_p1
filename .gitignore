@@ -6,8 +6,7 @@ big.txt
 .vscode
 small.txt
 spec-*
-test.txt
 .VSCodeCounter
-testOut.txt
 *.o
 *.gz
+ttest*
