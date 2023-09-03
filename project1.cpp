@@ -59,12 +59,7 @@ class MazeSolving {
         MAP,
         LIST
     };
-    enum MapStatus {
-        NORMAL,
-        STARTING,
-        ENDING,
-        PASSING
-    };
+
     /**
      * @brief a node type used in deque
      * x y curColor curSteps move fromColor
@@ -144,8 +139,8 @@ class MazeSolving {
     inline uint8_t decodeC(uint8_t n) {
         return uint8_t((n - 1) & 31);
     }
-    void outputSol(const vector<vector<vector<uint8_t>>>& from);
-    void outputNoSol(const vector<vector<vector<uint8_t>>>& from);
+    void outputSol(vector<vector<vector<uint8_t>>>& status);
+    void outputNoSol(const vector<vector<vector<uint8_t>>>& status);
 };
 
 int main(int argc, char** argv) {
@@ -286,10 +281,10 @@ void MazeSolving::readMaze() {
 }
 
 void MazeSolving::solve() {
-    vector<vector<vector<uint8_t>>> from(nColor + 1, vector<vector<uint8_t>>(height, vector<uint8_t>(width, 0)));
+    vector<vector<vector<uint8_t>>> status(nColor + 1, vector<vector<uint8_t>>(height, vector<uint8_t>(width, 0)));
     deque<Node> deq;
     deq.push_back(start);
-    from[start.c][start.x][start.y] = 1;
+    status[start.c][start.x][start.y] = 1;
     while ((!deq.empty())) {
         Node cur;
         if (searchMethod == BFS) {
@@ -309,9 +304,9 @@ void MazeSolving::solve() {
         }
         if ((islower(mazeMap[cur.x][cur.y]) || mazeMap[cur.x][cur.y] == '^') && cur.c != c2n(mazeMap[cur.x][cur.y])) {
             Node nxt(cur.x, cur.y, c2n(mazeMap[cur.x][cur.y]), cur.steps + 1, CHANGE_COLOR, cur.c);
-            if (!from[nxt.c][nxt.x][nxt.y]) {
+            if (!status[nxt.c][nxt.x][nxt.y]) {
                 deq.push_back(nxt);
-                from[nxt.c][nxt.x][nxt.y] = encode(nxt.move, nxt.fromColor);
+                status[nxt.c][nxt.x][nxt.y] = encode(nxt.move, nxt.fromColor);
             }
         } else {
             for (uint8_t dir = 0; dir < 4; dir++) {
@@ -326,9 +321,9 @@ void MazeSolving::solve() {
                             continue;
                         }
                     }
-                    if (!from[nxt.c][nxt.x][nxt.y]) {
+                    if (!status[nxt.c][nxt.x][nxt.y]) {
                         deq.push_back(nxt);
-                        from[nxt.c][nxt.x][nxt.y] = encode(nxt.move, nxt.fromColor);
+                        status[nxt.c][nxt.x][nxt.y] = encode(nxt.move, nxt.fromColor);
                     }
                     // cout << nxt.x << nxt.y << nxt.c << endl;
                 }
@@ -336,9 +331,9 @@ void MazeSolving::solve() {
         }
     }
     if (targetReached) {
-        outputSol(from);
+        outputSol(status);
     } else {
-        outputNoSol(from);
+        outputNoSol(status);
     }
 }
 
@@ -346,27 +341,29 @@ inline bool MazeSolving::isInMap(const Node& cur) {
     return cur.x >= 0 && cur.x < int32_t(height) && cur.y >= 0 && cur.y < int32_t(width);
 }
 
-void MazeSolving::outputSol(const vector<vector<vector<uint8_t>>>& from) {
+void MazeSolving::outputSol(vector<vector<vector<uint8_t>>>& status) {
+    const uint8_t STARTING = (6 << 5) + 1, ENDING = (6 << 5) + 2, PASSING = (6 << 5) + 3;
     vector<uint8_t> ansMove;
-    vector<vector<vector<uint8_t>>> mapStatus(nColor + 1, vector<vector<uint8_t>>(height, vector<uint8_t>(width, NORMAL)));
     for (uint8_t k = 0; k <= uint8_t(nColor); k++) {
-        if (from[k][target.x][target.y]) {
+        if (status[k][target.x][target.y]) {
             Node cur(target.x, target.y, k, 0, UP, 0);
             Move nextMove = UP;
             while (cur.x != start.x || cur.y != start.y || cur.c != 0) {
                 // cout << cur.x << cur.y << cur.c << start.x << start.y << endl;
-                ansMove.push_back(decodeMove(from[cur.c][cur.x][cur.y]));
+                ansMove.push_back(decodeMove(status[cur.c][cur.x][cur.y]));
+                Move curMove = decodeMove(status[cur.c][cur.x][cur.y]);
+                uint8_t fromC = decodeC(status[cur.c][cur.x][cur.y]);
                 if (nextMove == CHANGE_COLOR) {
-                    mapStatus[cur.c][cur.x][cur.y] = ENDING;
-                } else if (decodeMove(from[cur.c][cur.x][cur.y]) == CHANGE_COLOR) {
-                    mapStatus[cur.c][cur.x][cur.y] = STARTING;
+                    status[cur.c][cur.x][cur.y] = ENDING;
+                } else if (curMove == CHANGE_COLOR) {
+                    status[cur.c][cur.x][cur.y] = STARTING;
                 } else {
-                    mapStatus[cur.c][cur.x][cur.y] = PASSING;
+                    status[cur.c][cur.x][cur.y] = PASSING;
                 }
-                nextMove = decodeMove(from[cur.c][cur.x][cur.y]);
-                cur = Node(cur.x - dx[decodeMove(from[cur.c][cur.x][cur.y])], cur.y - dy[decodeMove(from[cur.c][cur.x][cur.y])], decodeC(from[cur.c][cur.x][cur.y]), 0, UP, 0);
+                nextMove = curMove;
+                cur = Node(cur.x - dx[curMove], cur.y - dy[curMove], fromC, 0, UP, 0);
             }
-            mapStatus[0][start.x][start.y] = STARTING;
+            status[0][start.x][start.y] = STARTING;
             break;
         }
     }
@@ -387,7 +384,7 @@ void MazeSolving::outputSol(const vector<vector<vector<uint8_t>>>& from) {
             cout << "// color " << n2c(k) << '\n';
             for (uint32_t i = 0; i < height; i++) {
                 for (uint32_t j = 0; j < width; j++) {
-                    switch (mapStatus[k][i][j]) {
+                    switch (status[k][i][j]) {
                         case STARTING:
                             cout << '@';
                             break;
@@ -406,13 +403,13 @@ void MazeSolving::outputSol(const vector<vector<vector<uint8_t>>>& from) {
         }
     }
 }
-void MazeSolving::outputNoSol(const vector<vector<vector<uint8_t>>>& from) {
+void MazeSolving::outputNoSol(const vector<vector<vector<uint8_t>>>& status) {
     cout << "No solution.\nDiscovered:\n";
     for (uint32_t i = 0; i < height; i++) {
         for (uint32_t j = 0; j < width; j++) {
             bool visited = false;
             for (uint32_t k = 0; k <= nColor; k++) {
-                if (from[k][i][j]) {
+                if (status[k][i][j]) {
                     visited = true;
                     break;
                 }
