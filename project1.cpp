@@ -324,10 +324,16 @@ void MazeSolving::solve() {
                     if (!status[nxt.c][nxt.x][nxt.y]) {
                         deq.push_back(nxt);
                         status[nxt.c][nxt.x][nxt.y] = encode(nxt.move, nxt.fromColor);
+                        if (mazeMap[nxt.x][nxt.y] == '?') {
+                            targetReached = true;
+                            break;
+                        }
                     }
                     // cout << nxt.x << nxt.y << nxt.c << endl;
                 }
             }
+            if (targetReached)
+                break;
         }
     }
     if (targetReached) {
