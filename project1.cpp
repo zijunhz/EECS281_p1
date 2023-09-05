@@ -68,28 +68,20 @@ class MazeSolving {
     class Node {
        public:
         Node() {}
-        Node(int32_t x, int32_t y, uint8_t c, uint32_t steps, Move move, uint8_t fromColor)
-            : x(x), y(y), c(c), steps(steps), move(move), fromColor(fromColor) {}
-        void updateNode(int32_t x, int32_t y, uint8_t c, uint32_t steps, Move move, uint8_t fromColor) {
+        Node(int32_t x, int32_t y, uint8_t c, Move move, uint8_t fromColor)
+            : x(x), y(y), c(c), move(move), fromColor(fromColor) {}
+        void updateNode(int32_t x, int32_t y, uint8_t c, Move move, uint8_t fromColor) {
             this->x = x;
             this->y = y;
             this->c = c;
-            this->steps = steps;
             this->move = move;
             this->fromColor = fromColor;
         }
         int32_t x;
         int32_t y;
         uint8_t c;  // 0...26
-        uint32_t steps;
         Move move;
         uint8_t fromColor;
-        class NodeSort {
-           public:
-            bool operator()(const Node& n1, const Node& n2) {
-                return n1.steps < n2.steps;
-            }
-        };
         Node& operator=(const Node& n) {
             copyFrom(n);
             return *this;
@@ -103,7 +95,6 @@ class MazeSolving {
             x = n.x;
             y = n.y;
             c = n.c;
-            steps = n.steps;
             move = n.move;
             fromColor = n.fromColor;
         }
@@ -227,10 +218,12 @@ void MazeSolving::readMaze() {
     while (st == "" || st == "\n" || (st.length() >= 2 && st[0] == '/' && st[1] == '/'))
         getline(cin, st);
     for (uint32_t i = 0; i < height; i++) {
-        istringstream ss(st);
+        istringstream ss;
+        if (i == 0)
+            ss = istringstream(st);
         mazeMap[i].resize(width);
         for (uint32_t j = 0; j < width; j++) {
-            if (!(ss >> mazeMap[i][j])) {
+            if (((i == 0) && (!(ss >> mazeMap[i][j]))) || (i > 0 && (!(cin >> mazeMap[i][j])))) {
                 throw(Error("Error: The map size does not agree with height*width"));
             }
             switch (mazeMap[i][j]) {
@@ -239,14 +232,14 @@ void MazeSolving::readMaze() {
                         throw(Error("Error: the maze cannot have more than 1 start"));
                     }
                     hasStart = true;
-                    start.updateNode(i, j, 0, 0, UP, 0);
+                    start.updateNode(i, j, 0, UP, 0);
                     break;
                 case '?':
                     if (hasTarget) {
                         throw(Error("Error: the maze cannot have more than 1 target"));
                     }
                     hasTarget = true;
-                    target.updateNode(i, j, 0, 0, UP, 0);
+                    target.updateNode(i, j, 0, UP, 0);
                     break;
                 case '.':
                     break;
@@ -268,8 +261,8 @@ void MazeSolving::readMaze() {
                     }
             }
         }
-        if (i < height - 1)
-            getline(cin, st);
+        // if (i < height - 1)
+        //     getline(cin, st);
     }
     char c;
     if (cin >> c) {
@@ -298,19 +291,19 @@ void MazeSolving::solve() {
         // cout << "-------------"
         //      << cur.x << cur.y << cur.c
         //      << endl;
-        if (mazeMap[cur.x][cur.y] == '?') {
-            targetReached = true;
-            break;
-        }
+        // if (mazeMap[cur.x][cur.y] == '?') {
+        // targetReached = true;
+        // break;
+        // }
         if ((islower(mazeMap[cur.x][cur.y]) || mazeMap[cur.x][cur.y] == '^') && cur.c != c2n(mazeMap[cur.x][cur.y])) {
-            Node nxt(cur.x, cur.y, c2n(mazeMap[cur.x][cur.y]), cur.steps + 1, CHANGE_COLOR, cur.c);
+            Node nxt(cur.x, cur.y, c2n(mazeMap[cur.x][cur.y]), CHANGE_COLOR, cur.c);
             if (!status[nxt.c][nxt.x][nxt.y]) {
                 deq.push_back(nxt);
                 status[nxt.c][nxt.x][nxt.y] = encode(nxt.move, nxt.fromColor);
             }
         } else {
             for (uint8_t dir = 0; dir < 4; dir++) {
-                Node nxt(cur.x + dx[dir], cur.y + dy[dir], cur.c, cur.steps + 1, Move(dir), cur.c);
+                Node nxt(cur.x + dx[dir], cur.y + dy[dir], cur.c, Move(dir), cur.c);
                 if (isInMap(nxt)) {
                     char tc = mazeMap[nxt.x][nxt.y];
                     if (tc == '.') {
@@ -352,7 +345,7 @@ void MazeSolving::outputSol(vector<vector<vector<uint8_t>>>& status) {
     vector<uint8_t> ansMove;
     for (uint8_t k = 0; k <= uint8_t(nColor); k++) {
         if (status[k][target.x][target.y]) {
-            Node cur(target.x, target.y, k, 0, UP, 0);
+            Node cur(target.x, target.y, k, UP, 0);
             Move nextMove = UP;
             while (cur.x != start.x || cur.y != start.y || cur.c != 0) {
                 // cout << cur.x << cur.y << cur.c << start.x << start.y << endl;
@@ -367,7 +360,7 @@ void MazeSolving::outputSol(vector<vector<vector<uint8_t>>>& status) {
                     status[cur.c][cur.x][cur.y] = PASSING;
                 }
                 nextMove = curMove;
-                cur = Node(cur.x - dx[curMove], cur.y - dy[curMove], fromC, 0, UP, 0);
+                cur = Node(cur.x - dx[curMove], cur.y - dy[curMove], fromC, UP, 0);
             }
             status[0][start.x][start.y] = STARTING;
             break;
@@ -379,7 +372,7 @@ void MazeSolving::outputSol(vector<vector<vector<uint8_t>>>& status) {
         while (!ansMove.empty()) {
             Move m = Move(ansMove.back());
             ansMove.pop_back();
-            cur = Node(cur.x + dx[m], cur.y + dy[m], cur.c, 0, UP, 0);
+            cur = Node(cur.x + dx[m], cur.y + dy[m], cur.c, UP, 0);
             if (m == CHANGE_COLOR) {
                 cur.c = c2n(mazeMap[cur.x][cur.y]);
             }
